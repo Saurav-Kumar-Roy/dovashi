@@ -1,16 +1,14 @@
-import time
+from pynput import mouse, keyboard
 import pyperclip
-import mouse
-import pyautogui
+import time
 import asyncio
-import keyboard
 from googletrans import Translator
 from plyer import notification
 
+kb = keyboard.Controller()
 translator = Translator()
 last_text = ""
 
-# Create a single event loop
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
@@ -22,14 +20,17 @@ async def get_translation(text):
         print("Translation error:", e)
         return None
 
-print("Background translator running... Select text with your mouse to see Bengali meaning.", flush=True)
 
-while True:
-    if keyboard.is_pressed("t"):  
-        pyautogui.hotkey("ctrl", "c")
-        time.sleep(0.3)
-
-        text = pyperclip.paste().strip()
+def on_click(x, y, button, pressed):
+    global last_text
+    # Detect mouse release (end of selection)
+    if not pressed and button == mouse.Button.left:
+        # Send Ctrl+C
+        with kb.pressed(keyboard.Key.ctrl):
+            kb.press('c')
+            kb.release('c')
+        time.sleep(0.2)  # wait for clipboard update
+        text = pyperclip.paste()
         if text and text != last_text:
             last_text = text
             try:
@@ -38,9 +39,10 @@ while True:
                     notification.notify(
                         title="Bengali Meaning",
                         message=f"{text} → {meaning}",
-                        timeout=4
+                        timeout=2
                     )
             except Exception as e:
-                print(f"Error: {e}", flush=True)
+                print(f"Error: {e}")
 
-    time.sleep(0.1)
+with mouse.Listener(on_click=on_click) as listener: 
+    listener.join()
